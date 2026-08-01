@@ -548,6 +548,18 @@
   const LS_REPORTS = 'pixel-nav:reports';
 
   let gkey = (window.GMAP_KEY || localStorage.getItem(LS_KEY) || '').trim();
+
+  fetch('api.env')
+    .then((r) => {
+      if (!r.ok) throw new Error('no env');
+      return r.text();
+    })
+    .then((t) => {
+      const m = t.match(/google-maps-api[ \t]*=[ \t]*([^ \t\r\n]+)/);
+      if (m && !gkey) gkey = m[1];
+    })
+    .catch(() => {});
+
   const keyEl = q('.gmap-key');
   keyEl.value = localStorage.getItem(LS_KEY) || '';
   keyEl.addEventListener('change', () => {
