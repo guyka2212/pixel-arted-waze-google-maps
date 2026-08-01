@@ -592,70 +592,119 @@
   }
 
   function transliterateHe(text) {
-    const map = {
-      'א':'','ב':'b','ג':'g','ד':'d','ה':'','ו':'v','ז':'z','ח':'ch',
-      'ט':'t','י':'y','ך':'kh','כ':'kh','ל':'l','מ':'m','נ':'n','ס':'s',
-      'ע':'','פ':'f','ף':'f','צ':'tz','ץ':'tz','ק':'k','ר':'r','ש':'sh','ת':'t',
-      'ם':'m','ן':'n',
+    const hebrewLetters = {
+      '\u05D0':'', '\u05D1':'b', '\u05D2':'g', '\u05D3':'d', '\u05D4':'',
+      '\u05D5':'v', '\u05D6':'z', '\u05D7':'ch', '\u05D8':'t', '\u05D9':'y',
+      '\u05DA':'kh', '\u05DB':'kh', '\u05DC':'l', '\u05DE':'m', '\u05E0':'n',
+      '\u05E1':'s', '\u05E2':'', '\u05E4':'f', '\u05E3':'f', '\u05E6':'tz',
+      '\u05E5':'tz', '\u05E7':'k', '\u05E8':'r', '\u05E9':'sh', '\u05EA':'t',
+      '\u05DD':'m', '\u05DF':'n', '\u05DC':'l', '\u05DE':'m', '\u05E0':'n',
     };
     let out = '';
-    for (const c of text) out += map[c] || c;
-    return out.trim().replace(/\s+/g, ' ');
+    for (const c of text) out += hebrewLetters[c] || c;
+    return out.replace(/\s+/g, ' ').trim();
+  }
+
+  function transliterateHeEnhanced(text) {
+    const basic = transliterateHe(text);
+    if (!basic) return basic;
+    const multi = ['ch', 'sh', 'kh', 'tz'];
+    const vowels = 'aeiou';
+    const words = basic.split(' ');
+    const result = [];
+    for (let wi = 0; wi < words.length; wi++) {
+      if (wi > 0) result.push(' ');
+      const word = words[wi];
+      const tokens = [];
+      let i = 0;
+      while (i < word.length) {
+        let found = false;
+        for (const m of multi) {
+          if (word.substr(i, m.length) === m) {
+            tokens.push(m);
+            i += m.length;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          tokens.push(word[i]);
+          i += 1;
+        }
+      }
+      let cc = 0;
+      for (const token of tokens) {
+        if (vowels.includes(token)) {
+          result.push(token);
+        } else {
+          if (cc > 0) {
+            result.push(cc <= 2 ? 'o' : 'a');
+          }
+          result.push(token);
+          cc += 1;
+        }
+      }
+    }
+    return result.join('');
   }
 
   function doSearch(text) {
     searchResults.classList.add('hidden');
     if (!text) return;
     const url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(text) + '&format=json&limit=6&accept-language=' + searchLang;
+    const renderResults = (feats) => {
+      searchResults.innerHTML = '';
+      if (!feats.length) {
+        showToast('NO RESULTS');
+        return;
+      }
+      feats.forEach((f) => {
+        const d = document.createElement('button');
+        d.type = 'button';
+        d.className = 'search-result';
+        d.textContent = searchLabel(f);
+        d.addEventListener('click', () => pickPlace(f));
+        searchResults.appendChild(d);
+      });
+      searchResults.classList.remove('hidden');
+    };
     fetch(url, { headers: { 'User-Agent': 'PixelNav/1.0' } })
       .then((r) => {
         if (!r.ok) throw new Error('bad');
         return r.json();
       })
       .then((feats) => {
-        if (!feats.length && /[\u0590-\u05FF]/.test(text)) {
-          const translit = transliterateHe(text);
-          if (translit && translit.length >= 2 && translit.length < text.length * 4) {
-            return fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(translit) + '&format=json&limit=10&accept-language=en&viewbox=30,29,36,34&bounded=1', { headers: { 'User-Agent': 'PixelNav/1.0' } })
-              .then((r2) => {
-                if (!r2.ok) throw new Error('bad');
-                return r2.json();
-              })
-              .then((feats2) => {
-                searchResults.innerHTML = '';
-                if (!feats2.length) {
-                  showToast('NO RESULTS');
-                  return;
-                }
-                feats2.forEach((f) => {
-                  const d = document.createElement('button');
-                  d.type = 'button';
-                  d.className = 'search-result';
-                  d.textContent = searchLabel(f);
-                  d.addEventListener('click', () => pickPlace(f));
-                  searchResults.appendChild(d);
-                });
-                searchResults.classList.remove('hidden');
-              });
+        if (feats.length) {
+          renderResults(feats);
+          return;
+        }
+        if (!/[\u0590-\u05FF]/.test(text)) {
+          showToast('NO RESULTS');
+          return;
+        }
+        const basic = transliterateHe(text);
+        const enhanced = transliterateHeEnhanced(text);
+        const variants = [enhanced, basic].filter((v) => v && v.length >= 2 && v.length < text.length * 4);
+        const tryNext = (idx) => {
+          if (idx >= variants.length) {
+            showToast('NO RESULTS');
+            return Promise.resolve([]);
           }
-          searchResults.innerHTML = '';
-          showToast('NO RESULTS');
-          return;
-        }
-        if (!feats.length) {
-          showToast('NO RESULTS');
-          return;
-        }
-        searchResults.innerHTML = '';
-        feats.forEach((f) => {
-          const d = document.createElement('button');
-          d.type = 'button';
-          d.className = 'search-result';
-          d.textContent = searchLabel(f);
-          d.addEventListener('click', () => pickPlace(f));
-          searchResults.appendChild(d);
-        });
-        searchResults.classList.remove('hidden');
+          const url2 = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(variants[idx]) + '&format=json&limit=10&accept-language=en&viewbox=30,29,36,34&bounded=1';
+          return fetch(url2, { headers: { 'User-Agent': 'PixelNav/1.0' } })
+            .then((r2) => {
+              if (!r2.ok) throw new Error('bad');
+              return r2.json();
+            })
+            .then((feats2) => {
+              if (feats2.length) {
+                renderResults(feats2);
+                return feats2;
+              }
+              return tryNext(idx + 1);
+            });
+        };
+        return tryNext(0);
       })
       .catch(() => showToast('SEARCH FAILED'));
   }
