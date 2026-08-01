@@ -84,8 +84,6 @@ body.scan::after {
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .35);
   user-select: none;
 }
-.hud-title { color: var(--line); font-size: 13px; letter-spacing: 1px; }
-.hud-sub { font-size: 7px; color: rgb(100, 116, 139); letter-spacing: 1px; margin-top: 6px; }
 .hud-coords { margin-top: 10px; font-size: 9px; line-height: 1.9; }
 .dim { color: rgb(100, 116, 139); }
 .hud-progress {
