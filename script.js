@@ -652,9 +652,10 @@
 
   function pickPlace(f) {
     searchResults.classList.add('hidden');
-    const coords = f.geometry && f.geometry.coordinates;
-    if (!coords || coords.length < 2) return;
-    const latlng = [coords[1], coords[0]];
+    const lat = parseFloat(f.lat);
+    const lon = parseFloat(f.lon);
+    if (!lat || !lon) return;
+    const latlng = [lat, lon];
     if (destMarker) map.removeLayer(destMarker);
     destMarker = L.marker(latlng, { icon: destIcon() }).addTo(map);
     map.flyTo(latlng, Math.max(map.getZoom(), 14), { duration: 1 });
@@ -667,8 +668,7 @@
   let currentDest = null;
 
   function showPlaceCard(f, latlng) {
-    const p = f.properties || {};
-    currentDest = { name: p.name || 'PLACE', addr: placeAddrText(p), latlng: latlng };
+    currentDest = { name: f.display_name || 'PLACE', addr: placeAddrText(f.address || {}), latlng: latlng };
     placeName.textContent = currentDest.name;
     placeAddr.textContent = currentDest.addr;
     placeCard.classList.remove('hidden');
