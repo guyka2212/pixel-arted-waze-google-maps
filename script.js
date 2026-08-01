@@ -14,14 +14,6 @@
     body: document.body,
     toast: q('.toast'),
     btnLocate: q('.btn-locate'),
-    btnSettings: q('.btn-settings'),
-    btnCloseSettings: q('.btn-close-settings'),
-    settings: q('.settings'),
-    scaleEl: q('.pixel-scale'),
-    scaleVal: q('.pixel-scale-val'),
-    levelsEl: q('.pixel-levels'),
-    levelsVal: q('.pixel-levels-val'),
-    scanlines: q('.scanlines'),
     splash: q('.splash'),
   };
 
@@ -280,22 +272,6 @@
   }
   tiles.once('load', hideSplash);
   setTimeout(hideSplash, 8000);
-
-  function applyTileSettings() {
-    tiles.options.pixelScale = Number(els.scaleEl.value);
-    tiles.options.posterize = Number(els.levelsEl.value);
-    els.scaleVal.textContent = els.scaleEl.value;
-    els.levelsVal.textContent = els.levelsEl.value;
-    tiles.redraw();
-  }
-
-  els.scaleEl.addEventListener('input', applyTileSettings);
-  els.levelsEl.addEventListener('input', applyTileSettings);
-  els.scanlines.addEventListener('change', () => {
-    els.body.classList.toggle('scan', els.scanlines.checked);
-  });
-  els.btnSettings.addEventListener('click', () => els.settings.classList.toggle('hidden'));
-  els.btnCloseSettings.addEventListener('click', () => els.settings.classList.add('hidden'));
 
   const PLACE_OK = ['city', 'town', 'municipality', 'village', 'borough', 'island', 'suburb', 'neighbourhood', 'quarter', 'square', 'locality', 'hamlet', 'farm', 'islet', 'isolated_dwelling'];
   const NATURAL_OK = ['peak', 'mountain', 'volcano', 'hill', 'cape', 'bay', 'island', 'islet'];
@@ -558,17 +534,13 @@
   let searchLang = localStorage.getItem(LS_LANG) || 'en';
 
   const langSel = q('.search-lang');
-  const langSelSet = q('.search-lang-setting');
   langSel.value = searchLang;
-  langSelSet.value = searchLang;
   function setLang(v) {
     searchLang = v;
     localStorage.setItem(LS_LANG, v);
-    langSel.value = v;
-    langSelSet.value = v;
+    if (langSel) langSel.value = v;
   }
-  langSel.addEventListener('change', () => setLang(langSel.value));
-  langSelSet.addEventListener('change', () => setLang(langSelSet.value));
+  if (langSel) langSel.addEventListener('change', () => setLang(langSel.value));
 
   const searchInput = q('.search-input');
   const searchResults = q('.search-results');
