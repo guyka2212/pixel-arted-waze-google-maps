@@ -541,6 +541,19 @@
 
   const LS_REPORTS = 'pixel-nav:reports';
   const LS_LANG = 'pixel-nav:lang';
+  const LS_KEY = 'pixel-nav:key';
+
+  let orsKey = (localStorage.getItem(LS_KEY) || '').trim();
+  fetch('api.env')
+    .then((r) => {
+      if (!r.ok) throw new Error('no env');
+      return r.text();
+    })
+    .then((t) => {
+      const m = t.match(/openrouteservice-api[ \t]*=[ \t]*([^ \t\r\n]+)/);
+      if (m && !orsKey) orsKey = m[1];
+    })
+    .catch(() => {});
 
   let searchLang = localStorage.getItem(LS_LANG) || 'en';
 
@@ -578,6 +591,18 @@
     return addr !== '-' ? name + ' - ' + addr : name;
   }
 
+  function transliterateHe(text) {
+    const map = {
+      'א':'','ב':'b','ג':'g','ד':'d','ה':'','ו':'v','ז':'z','ח':'ch',
+      'ט':'t','י':'y','ך':'kh','כ':'kh','ל':'l','מ':'m','נ':'n','ס':'s',
+      'ע':'','פ':'f','ף':'f','צ':'tz','ץ':'tz','ק':'k','ר':'r','ש':'sh','ת':'t',
+      'ם':'m','ן':'n',
+    };
+    let out = '';
+    for (const c of text) out += map[c] || c;
+    return out.trim();
+  }
+
   function doSearch(text) {
     searchResults.classList.add('hidden');
     if (!text) return;
@@ -588,29 +613,40 @@
         return r.json();
       })
       .then((feats) => {
-        searchResults.innerHTML = '';
-        if (!feats.length && searchLang === 'he') {
-          const translit = text.replace(/[\u0590-\u05FF]/g, (c) => {
-            const map = {
-              'א':'a','ב':'b','ג':'g','ד':'d','ה':'h','ו':'w','ז':'z','ח':'h',
-              'ט':'t','י':'y','ך':'h','כ':'k','ל':'l','מ':'m','נ':'n','ס':'s',
-              'ע':'\u02bc','פ':'p','צ':'t','ק':'q','ר':'r','ש':'sh','ת':'t',
-              'ם':'m','ן':'n','ץ':'tz','פ':'f','צ':'ts',
-            };
-            return map[c] || c;
-          });
-          if (translit !== text) {
-            const url2 = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(translit) + '&format=json&limit=6&accept-language=en';
-            return fetch(url2, { headers: { 'User-Agent': 'PixelNav/1.0' } }).then((r2) => {
-              if (!r2.ok) throw new Error('bad');
-              return r2.json();
-            });
+        if (!feats.length && /[\u0590-\u05FF]/.test(text)) {
+          const translit = transliterateHe(text);
+          if (translit && translit.length >= 2 && translit.length < text.length * 4) {
+            return fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(translit) + '&format=json&limit=10&accept-language=en&viewbox=30,29,36,34', { headers: { 'User-Agent': 'PixelNav/1.0' } })
+              .then((r2) => {
+                if (!r2.ok) throw new Error('bad');
+                return r2.json();
+              })
+              .then((feats2) => {
+                searchResults.innerHTML = '';
+                if (!feats2.length) {
+                  showToast('NO RESULTS');
+                  return;
+                }
+                feats2.forEach((f) => {
+                  const d = document.createElement('button');
+                  d.type = 'button';
+                  d.className = 'search-result';
+                  d.textContent = searchLabel(f);
+                  d.addEventListener('click', () => pickPlace(f));
+                  searchResults.appendChild(d);
+                });
+                searchResults.classList.remove('hidden');
+              });
           }
+          searchResults.innerHTML = '';
+          showToast('NO RESULTS');
+          return;
         }
         if (!feats.length) {
           showToast('NO RESULTS');
           return;
         }
+        searchResults.innerHTML = '';
         feats.forEach((f) => {
           const d = document.createElement('button');
           d.type = 'button';
