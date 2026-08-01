@@ -742,6 +742,8 @@
   let selectedRoute = 0;
   let routeDashTimer = null;
   let navActive = false;
+  let navHeadingValid = false;
+  let navHeadingDeg = 0;
 
   function buildRoute() {
     if (!currentDest) return;
@@ -750,13 +752,19 @@
       return;
     }
     const o = getOrigin();
-    const body = JSON.stringify({
+    const body = {
       coordinates: [
         [o.lng, o.lat],
         [currentDest.latlng[1], currentDest.latlng[0]],
       ],
-      radiuses: [500, 100],
-    });
+      radiuses: [50, 50],
+    };
+    if (hasPlayer && navHeadingValid) {
+      body.bearings = [[navHeadingDeg, 30], [currentDest.heading || 0, 30]];
+    } else {
+      body.bearings = [null, null];
+    }
+    const bodyStr = JSON.stringify(body);
     showToast('ROUTING...', 2500);
     fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
       method: 'POST',
@@ -764,7 +772,7 @@
         'Authorization': orsKey,
         'Content-Type': 'application/json',
       },
-      body: body,
+       body: bodyStr,
     })
       .then((r) => {
         if (!r.ok) throw new Error('bad');
@@ -893,6 +901,7 @@
   function startNav() {
     if (!currentRoutes || !currentRoutes[selectedRoute]) return;
     navActive = true;
+    navHeadingValid = false;
     els.body.classList.add('navigating');
     routeCard.classList.add('hidden');
     placeCard.classList.add('hidden');
@@ -963,6 +972,12 @@
     const ll = [lat, lng];
     if (lastNavPos) traveledDistance += distMeters(lastNavPos, ll);
     lastNavPos = ll;
+    if (pos.coords.heading != null && !isNaN(pos.coords.heading)) {
+      navHeadingDeg = pos.coords.heading;
+      navHeadingValid = true;
+    } else {
+      navHeadingValid = false;
+    }
     if (carMarker) {
       carMarker.setLatLng(ll);
       setCarHeading(pos.coords.heading || headingAlongRoute());
