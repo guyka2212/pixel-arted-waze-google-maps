@@ -600,7 +600,7 @@
     };
     let out = '';
     for (const c of text) out += map[c] || c;
-    return out.trim();
+    return out.trim().replace(/\s+/g, ' ');
   }
 
   function doSearch(text) {
@@ -616,7 +616,7 @@
         if (!feats.length && /[\u0590-\u05FF]/.test(text)) {
           const translit = transliterateHe(text);
           if (translit && translit.length >= 2 && translit.length < text.length * 4) {
-            return fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(translit) + '&format=json&limit=10&accept-language=en&viewbox=30,29,36,34', { headers: { 'User-Agent': 'PixelNav/1.0' } })
+            return fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(translit) + '&format=json&limit=10&accept-language=en&viewbox=30,29,36,34&bounded=1', { headers: { 'User-Agent': 'PixelNav/1.0' } })
               .then((r2) => {
                 if (!r2.ok) throw new Error('bad');
                 return r2.json();
