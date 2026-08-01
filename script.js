@@ -721,6 +721,7 @@
         [o.lng, o.lat],
         [currentDest.latlng[1], currentDest.latlng[0]],
       ],
+      radiuses: [500, 100],
     });
     showToast('ROUTING...', 2500);
     fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
