@@ -72,34 +72,7 @@ body.scan::after {
   background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .16) 0 1px, transparent 1px 3px);
 }
 
-.hud {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 1000;
-  background: var(--panel);
-  border: 2px solid var(--line-dim);
-  color: var(--text);
-  padding: 10px 12px;
-  box-shadow: 6px 6px 0 rgba(0, 0, 0, .35);
-  user-select: none;
-}
-.hud-coords { margin-top: 10px; font-size: 9px; line-height: 1.9; }
 .dim { color: rgb(100, 116, 139); }
-.hud-progress {
-  height: 6px;
-  border: 1px solid var(--line-dim);
-  margin-top: 10px;
-  background: var(--bg);
-}
-.hud-progress-bar {
-  height: 100%;
-  width: 100%;
-  background: repeating-linear-gradient(90deg, var(--line) 0 8px, transparent 8px 12px);
-  animation: hud-advance 2.4s steps(24) infinite;
-}
-@keyframes hud-advance { from { width: 0%; } to { width: 100%; } }
-body.map-ready .hud-progress-bar { animation: none; width: 100%; }
 
 .blink { animation: blink 1s steps(2) infinite; color: var(--line); }
 @keyframes blink { 50% { opacity: 0; } }
@@ -445,13 +418,12 @@ input[type='checkbox'] { accent-color: var(--line); width: 16px; height: 16px; m
 .note { font-size: 7px; display: block; margin-top: 6px; line-height: 1.7; }
 
 body.navigating .search,
-body.navigating .hud,
 body.navigating .place-card,
 body.navigating .route-card { display: none; }
 
 @media (max-width: 560px) {
   .pbtn-txt { display: none; }
-  .hud-coords { font-size: 8px; }
+}
   .settings { width: 210px; }
   .search { width: 64vw; }
   .nav-banner { top: 8px; width: 92vw; }

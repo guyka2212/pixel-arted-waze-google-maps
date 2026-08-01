@@ -8,9 +8,6 @@
 
   const els = {
     map: q('.map'),
-    lat: q('.hud-lat'),
-    lng: q('.hud-lng'),
-    zoom: q('.hud-zoom'),
     body: document.body,
     toast: q('.toast'),
     btnLocate: q('.btn-locate'),
@@ -207,27 +204,11 @@
       setTimeout(() => player.closePopup(), 4000);
     }
     hasPlayer = true;
-    updateHud(latlng);
     hideToast();
     if (fly) {
       map.flyTo(latlng, Math.max(map.getZoom(), 16), { duration: 1.4 });
     }
   }
-
-  function updateHud(latlng) {
-    els.lat.textContent = latlng.lat.toFixed(4);
-    els.lng.textContent = latlng.lng.toFixed(4);
-  }
-
-  function refreshHud() {
-    els.zoom.textContent = map.getZoom();
-    if (hasPlayer) {
-      updateHud(player.getLatLng());
-    } else {
-      updateHud(map.getCenter());
-    }
-  }
-  map.on('move', refreshHud);
 
   function locateMe() {
     if (!navigator.geolocation) {
@@ -507,7 +488,6 @@
   }
   map.on('moveend', schedulePlaces);
 
-  refreshHud();
   schedulePlaces();
   locateMe();
 
@@ -1028,8 +1008,6 @@
     }
     updateStep();
     if (navActive) map.panTo(ll, { animate: false });
-    updateHud(L.latLng(lat, lng));
-    els.zoom.textContent = map.getZoom();
   }
 
   function updateStep() {
