@@ -456,19 +456,14 @@
   function renderPhotonPlaces(json, center) {
     placesData = { render: () => renderPhotonPlaces(json, center) };
     const items = [];
-    for (const f of json.features || []) {
-      const props = f.properties || {};
-      const name = props.name;
+    if (!json || !json.address) return;
+    const addr = json.address;
+    const types = ['city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood', 'county', 'state', 'country', 'peak', 'mountain', 'hill', 'volcano', 'cape', 'bay', 'island', 'islet'];
+    for (const t of types) {
+      const name = addr[t];
       if (!name) continue;
-      const value = props.osm_value;
-      if (props.osm_key === 'place' && PLACE_OK.indexOf(value) < 0) continue;
-      if (props.osm_key === 'natural' && NATURAL_OK.indexOf(value) < 0) continue;
-      if (props.osm_key !== 'place' && props.osm_key !== 'natural') continue;
-      const coords = f.geometry && f.geometry.coordinates;
-      if (!coords || coords.length < 2) continue;
-      const latlng = [coords[1], coords[0]];
-      const rank = placeRankFor(value);
-      items.push({ name: name, rank: rank, dist: map.distance(center, latlng), latlng: latlng });
+      const rank = placeRankFor(t);
+      items.push({ name: name, rank: rank, dist: 0, latlng: [json.lat, json.lon] });
     }
     renderPlaceItems(items, 40);
   }
@@ -514,7 +509,7 @@
     };
     attempt(0, 0);
 
-    const url = `https://photon.komoot.io/reverse?lon=${center.lng}&lat=${center.lat}&limit=40&lang=${searchLang}&layer=locality&layer=city&layer=district&layer=county&layer=state&layer=country&layer=other`;
+    const url = `https://nominatim.openstreetmap.org/reverse?lon=${center.lng}&lat=${center.lat}&format=json&limit=40&accept-language=${searchLang}&zoom=10&addressdetails=1`;
     fetchWithTimeout(url, { signal: signal }, 15000)
       .then((res) => {
         if (!res.ok) throw new Error('bad status');
@@ -590,31 +585,29 @@
 
   function placeAddrText(p) {
     const bits = [];
-    if (p.housenumber) bits.push(p.housenumber);
-    if (p.street) bits.push(p.street);
-    if (p.city) bits.push(p.city);
+    if (p.house_number) bits.push(p.house_number);
+    if (p.road) bits.push(p.road);
+    if (p.city || p.town || p.village) bits.push(p.city || p.town || p.village);
     if (p.state) bits.push(p.state);
     if (p.country) bits.push(p.country);
     return bits.join(', ') || '-';
   }
 
   function searchLabel(f) {
-    const p = f.properties || {};
-    const addr = placeAddrText(p);
-    return addr !== '-' ? p.name + ' - ' + addr : (p.name || 'PLACE');
+    const addr = placeAddrText(f.address || {});
+    return addr !== '-' ? (f.display_name || 'PLACE') : (f.display_name || 'PLACE');
   }
 
   function doSearch(text) {
     searchResults.classList.add('hidden');
     if (!text) return;
-    const url = 'https://photon.komoot.io/api/?q=' + encodeURIComponent(text) + '&limit=6&lang=' + searchLang;
-    fetch(url)
+    const url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(text) + '&format=json&limit=6&accept-language=' + searchLang;
+    fetch(url, { headers: { 'User-Agent': 'PixelNav/1.0' } })
       .then((r) => {
         if (!r.ok) throw new Error('bad');
         return r.json();
       })
-      .then((json) => {
-        const feats = json.features || [];
+      .then((feats) => {
         searchResults.innerHTML = '';
         if (!feats.length) {
           showToast('NO RESULTS');
