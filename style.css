@@ -157,6 +157,19 @@ body.map-ready .hud-progress-bar { animation: none; width: 100%; }
 .srow-check > span { margin-bottom: 0; }
 input[type='range'] { width: 100%; accent-color: var(--line); height: 18px; }
 input[type='checkbox'] { accent-color: var(--line); width: 16px; height: 16px; margin: 0; }
+.srow select {
+  width: 100%;
+  background: var(--panel);
+  border: 2px solid var(--line-dim);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 9px;
+  padding: 8px;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .35);
+  outline: none;
+  cursor: pointer;
+}
+.srow select:focus { border-color: var(--line); }
 .settings-note {
   font-size: 7px;
   color: rgb(100, 116, 139);
@@ -280,8 +293,11 @@ input[type='checkbox'] { accent-color: var(--line); width: 16px; height: 16px; m
   transform: translateX(-50%);
   z-index: 1100;
   width: min(420px, 60vw);
+  display: flex;
+  gap: 6px;
 }
 .search-input {
+  flex: 1;
   width: 100%;
   background: var(--panel);
   border: 2px solid var(--line-dim);
@@ -293,6 +309,19 @@ input[type='checkbox'] { accent-color: var(--line); width: 16px; height: 16px; m
   outline: none;
 }
 .search-input:focus { border-color: var(--line); }
+.search-lang {
+  background: var(--panel);
+  border: 2px solid var(--line-dim);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 11px 8px;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .35);
+  outline: none;
+  cursor: pointer;
+  min-width: 64px;
+}
+.search-lang:focus { border-color: var(--line); }
 .search-results {
   background: var(--panel);
   border: 2px solid var(--line-dim);

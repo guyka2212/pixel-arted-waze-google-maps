@@ -514,7 +514,7 @@
     };
     attempt(0, 0);
 
-    const url = `https://photon.komoot.io/reverse?lon=${center.lng}&lat=${center.lat}&limit=40&lang=en&layer=locality&layer=city&layer=district&layer=county&layer=state&layer=country&layer=other`;
+    const url = `https://photon.komoot.io/reverse?lon=${center.lng}&lat=${center.lat}&limit=40&lang=${searchLang}&layer=locality&layer=city&layer=district&layer=county&layer=state&layer=country&layer=other`;
     fetchWithTimeout(url, { signal: signal }, 15000)
       .then((res) => {
         if (!res.ok) throw new Error('bad status');
@@ -546,8 +546,10 @@
 
   const LS_KEY = 'pixel-nav:key';
   const LS_REPORTS = 'pixel-nav:reports';
+  const LS_LANG = 'pixel-nav:lang';
 
   let orsKey = (localStorage.getItem(LS_KEY) || '').trim();
+  let searchLang = localStorage.getItem(LS_LANG) || 'en';
 
   fetch('api.env')
     .then((r) => {
@@ -568,6 +570,19 @@
     orsKey = v;
     showToast(orsKey ? 'KEY SAVED' : 'KEY CLEARED');
   });
+
+  const langSel = q('.search-lang');
+  const langSelSet = q('.search-lang-setting');
+  langSel.value = searchLang;
+  langSelSet.value = searchLang;
+  function setLang(v) {
+    searchLang = v;
+    localStorage.setItem(LS_LANG, v);
+    langSel.value = v;
+    langSelSet.value = v;
+  }
+  langSel.addEventListener('change', () => setLang(langSel.value));
+  langSelSet.addEventListener('change', () => setLang(langSelSet.value));
 
   const searchInput = q('.search-input');
   const searchResults = q('.search-results');
@@ -592,7 +607,7 @@
   function doSearch(text) {
     searchResults.classList.add('hidden');
     if (!text) return;
-    const url = 'https://photon.komoot.io/api/?q=' + encodeURIComponent(text) + '&limit=6&lang=en';
+    const url = 'https://photon.komoot.io/api/?q=' + encodeURIComponent(text) + '&limit=6&lang=' + searchLang;
     fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error('bad');
