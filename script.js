@@ -539,32 +539,10 @@
     document.fonts.load(`9px 'Press Start 2P'`).then(redrawPlaces).catch(() => {});
   }
 
-  const LS_KEY = 'pixel-nav:key';
   const LS_REPORTS = 'pixel-nav:reports';
   const LS_LANG = 'pixel-nav:lang';
 
-  let orsKey = (localStorage.getItem(LS_KEY) || '').trim();
   let searchLang = localStorage.getItem(LS_LANG) || 'en';
-
-  fetch('api.env')
-    .then((r) => {
-      if (!r.ok) throw new Error('no env');
-      return r.text();
-    })
-    .then((t) => {
-      const m = t.match(/openrouteservice-api[ \t]*=[ \t]*([^ \t\r\n]+)/);
-      if (m && !orsKey) orsKey = m[1];
-    })
-    .catch(() => {});
-
-  const keyEl = q('.gmap-key');
-  keyEl.value = localStorage.getItem(LS_KEY) || '';
-  keyEl.addEventListener('change', () => {
-    const v = keyEl.value.trim();
-    localStorage.setItem(LS_KEY, v);
-    orsKey = v;
-    showToast(orsKey ? 'KEY SAVED' : 'KEY CLEARED');
-  });
 
   const langSel = q('.search-lang');
   const langSelSet = q('.search-lang-setting');
