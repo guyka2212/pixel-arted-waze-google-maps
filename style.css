@@ -294,6 +294,11 @@ input[type='checkbox'] { accent-color: var(--line); width: 16px; height: 16px; m
   z-index: 1100;
   width: min(420px, 60vw);
   display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.search-row {
+  display: flex;
   gap: 6px;
 }
 .search-input {
@@ -323,12 +328,17 @@ input[type='checkbox'] { accent-color: var(--line); width: 16px; height: 16px; m
 }
 .search-lang:focus { border-color: var(--line); }
 .search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   background: var(--panel);
   border: 2px solid var(--line-dim);
   border-top: none;
   box-shadow: 4px 4px 0 rgba(0, 0, 0, .35);
   max-height: 260px;
   overflow-y: auto;
+  z-index: 10;
 }
 .search-result {
   display: block;
