@@ -568,12 +568,14 @@
     if (p.city || p.town || p.village) bits.push(p.city || p.town || p.village);
     if (p.state) bits.push(p.state);
     if (p.country) bits.push(p.country);
+    if (p.postcode) bits.push(p.postcode);
     return bits.join(', ') || '-';
   }
 
   function searchLabel(f) {
     const addr = placeAddrText(f.address || {});
-    return addr !== '-' ? (f.display_name || 'PLACE') : (f.display_name || 'PLACE');
+    const name = f.name || f.display_name || 'PLACE';
+    return addr !== '-' ? name + ' - ' + addr : name;
   }
 
   function doSearch(text) {
@@ -587,6 +589,24 @@
       })
       .then((feats) => {
         searchResults.innerHTML = '';
+        if (!feats.length && searchLang === 'he') {
+          const translit = text.replace(/[\u0590-\u05FF]/g, (c) => {
+            const map = {
+              'א':'a','ב':'b','ג':'g','ד':'d','ה':'h','ו':'w','ז':'z','ח':'h',
+              'ט':'t','י':'y','ך':'h','כ':'k','ל':'l','מ':'m','נ':'n','ס':'s',
+              'ע':'\u02bc','פ':'p','צ':'t','ק':'q','ר':'r','ש':'sh','ת':'t',
+              'ם':'m','ן':'n','ץ':'tz','פ':'f','צ':'ts',
+            };
+            return map[c] || c;
+          });
+          if (translit !== text) {
+            const url2 = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(translit) + '&format=json&limit=6&accept-language=en';
+            return fetch(url2, { headers: { 'User-Agent': 'PixelNav/1.0' } }).then((r2) => {
+              if (!r2.ok) throw new Error('bad');
+              return r2.json();
+            });
+          }
+        }
         if (!feats.length) {
           showToast('NO RESULTS');
           return;
@@ -646,7 +666,7 @@
   let currentDest = null;
 
   function showPlaceCard(f, latlng) {
-    currentDest = { name: f.display_name || 'PLACE', addr: placeAddrText(f.address || {}), latlng: latlng };
+    currentDest = { name: f.display_name || f.name || 'PLACE', addr: placeAddrText(f.address || f), latlng: latlng };
     placeName.textContent = currentDest.name;
     placeAddr.textContent = currentDest.addr;
     placeCard.classList.remove('hidden');
