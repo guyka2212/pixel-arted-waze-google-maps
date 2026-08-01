@@ -591,17 +591,39 @@
     return addr !== '-' ? name + ' - ' + addr : name;
   }
 
+  const HEBREW_PLACE_MAP = {
+    '\u05D9\u05E7\u05E0\u05E2\u05DD': 'Yokneam',
+    '\u05D9\u05E7\u05E0\u05E2\u05DD \u05E2\u05D9\u05DC\u05D9\u05EA': 'Yokneam Illit',
+    '\u05D9\u05E7\u05E0\u05E2\u05DD \u05D4\u05DE\u05D5\u05E9\u05D4': 'Yokneam HaMoshava',
+    '\u05EA\u05DC\u05D0': 'Tena',
+    '\u05E7\u05E8\u05D9\u05D0\u05EA \u05D0\u05EA\u05D4': 'Kiryat Ata',
+    '\u05EA\u05DC\u05E9\u05D9\u05D1\u05D9\u05DD \u05D9\u05D9\u05E9\u05D5': 'Tel Aviv',
+    '\u05E8\u05D7\u05D5\u05D1\u05D5\u05EA \u05E9\u05E8\u05D9\u05D3\u05D5\u05E8': 'Rambat Shaked',
+  };
+
+  function findEnglishPlace(text) {
+    const clean = text.trim();
+    if (HEBREW_PLACE_MAP[clean]) return HEBREW_PLACE_MAP[clean];
+    const words = clean.split(' ');
+    if (words.length >= 1 && HEBREW_PLACE_MAP[words[0]]) {
+      let rest = words.slice(1).join(' ');
+      const eng = HEBREW_PLACE_MAP[words[0]];
+      return rest ? eng + ' ' + rest : eng;
+    }
+    return null;
+  }
+
   function transliterateHe(text) {
     const hebrewLetters = {
       '\u05D0':'', '\u05D1':'b', '\u05D2':'g', '\u05D3':'d', '\u05D4':'',
       '\u05D5':'v', '\u05D6':'z', '\u05D7':'ch', '\u05D8':'t', '\u05D9':'y',
-      '\u05DA':'kh', '\u05DB':'kh', '\u05DC':'l', '\u05DE':'m', '\u05E0':'n',
+      '\u05Da':'kh', '\u05Db':'kh', '\u05D3':'l', '\u05De':'m', '\u05E0':'n',
       '\u05E1':'s', '\u05E2':'', '\u05E4':'f', '\u05E3':'f', '\u05E6':'tz',
-      '\u05E5':'tz', '\u05E7':'k', '\u05E8':'r', '\u05E9':'sh', '\u05EA':'t',
-      '\u05DD':'m', '\u05DF':'n', '\u05DC':'l', '\u05DE':'m', '\u05E0':'n',
+      '\u05E5':'tz', '\u05E7':'k', '\u05E8':'r', '\u05E9':'sh', '\u05Ea':'t',
+      '\u05DD':'m', '\u05DF':'n',
     };
     let out = '';
-    for (const c of text) out += hebrewLetters[c] || c;
+     for (const c of text) out += (c in hebrewLetters ? hebrewLetters[c] : c);
     return out.replace(/\s+/g, ' ').trim();
   }
 
@@ -684,7 +706,8 @@
         }
         const basic = transliterateHe(text);
         const enhanced = transliterateHeEnhanced(text);
-        const variants = [enhanced, basic].filter((v) => v && v.length >= 2 && v.length < text.length * 4);
+        const eng = findEnglishPlace(text);
+        const variants = [eng, enhanced, basic].filter((v) => v && v.length >= 2 && v.length < text.length * 4);
         const tryNext = (idx) => {
           if (idx >= variants.length) {
             showToast('NO RESULTS');
