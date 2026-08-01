@@ -23,9 +23,7 @@ jobs:
       - name: stage site
         run: |
           mkdir -p dist
-          cp index.html style.css script.js .nojekyll dist/
-          cp api.env dist/ 2>/dev/null || true
-          printf "window.GMAP_KEY = '%s';\n" "${{ secrets.GMAPS_KEY }}" > dist/config.js
+          cp index.html style.css script.js .nojekyll api.env dist/
       - name: configure pages
         uses: actions/configure-pages@v5
       - name: upload artifact

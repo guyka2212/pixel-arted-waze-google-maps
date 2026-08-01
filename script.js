@@ -547,7 +547,7 @@
   const LS_KEY = 'pixel-nav:key';
   const LS_REPORTS = 'pixel-nav:reports';
 
-  let gkey = (window.GMAP_KEY || localStorage.getItem(LS_KEY) || '').trim();
+  let orsKey = (localStorage.getItem(LS_KEY) || '').trim();
 
   fetch('api.env')
     .then((r) => {
@@ -555,8 +555,8 @@
       return r.text();
     })
     .then((t) => {
-      const m = t.match(/google-maps-api[ \t]*=[ \t]*([^ \t\r\n]+)/);
-      if (m && !gkey) gkey = m[1];
+      const m = t.match(/openrouteservice-api[ \t]*=[ \t]*([^ \t\r\n]+)/);
+      if (m && !orsKey) orsKey = m[1];
     })
     .catch(() => {});
 
@@ -565,69 +565,57 @@
   keyEl.addEventListener('change', () => {
     const v = keyEl.value.trim();
     localStorage.setItem(LS_KEY, v);
-    gkey = v || (window.GMAP_KEY || '');
-    if (gkey) loadGmaps();
-    showToast(gkey ? 'KEY SAVED' : 'KEY CLEARED');
+    orsKey = v;
+    showToast(orsKey ? 'KEY SAVED' : 'KEY CLEARED');
   });
-
-  let gapiReady = null;
-  let gapiLoading = false;
-
-  function loadGmaps() {
-    if (gapiReady || gapiLoading) return;
-    if (!gkey) {
-      showToast('ENTER A GMAPS KEY IN SETTINGS');
-      return;
-    }
-    gapiLoading = true;
-    const s = document.createElement('script');
-    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(gkey) + '&libraries=places&v=weekly&callback=__ginit';
-    s.async = true;
-    document.body.appendChild(s);
-  }
-
-  window.__ginit = () => {
-    gapiReady = window.google;
-    gapiLoading = false;
-  };
-
-  window.addEventListener('error', (e) => {
-    if (e.target && e.target.tagName === 'SCRIPT' && gapiLoading) {
-      gapiLoading = false;
-      showToast('GOOGLE MAPS FAILED TO LOAD. CHECK KEY.');
-    }
-  }, true);
 
   const searchInput = q('.search-input');
   const searchResults = q('.search-results');
   let searchTimer = null;
 
+  function placeAddrText(p) {
+    const bits = [];
+    if (p.housenumber) bits.push(p.housenumber);
+    if (p.street) bits.push(p.street);
+    if (p.city) bits.push(p.city);
+    if (p.state) bits.push(p.state);
+    if (p.country) bits.push(p.country);
+    return bits.join(', ') || '-';
+  }
+
+  function searchLabel(f) {
+    const p = f.properties || {};
+    const addr = placeAddrText(p);
+    return addr !== '-' ? p.name + ' - ' + addr : (p.name || 'PLACE');
+  }
+
   function doSearch(text) {
     searchResults.classList.add('hidden');
     if (!text) return;
-    if (!gkey) {
-      showToast('ENTER A GMAPS KEY IN SETTINGS');
-      return;
-    }
-    loadGmaps();
-    if (!gapiReady) {
-      showToast('GMAPS LOADING...');
-      return;
-    }
-    const svc = new google.maps.places.AutocompleteService();
-    svc.getPlacePredictions({ input: text, language: 'en' }, (preds, status) => {
-      if (status !== 'OK' || !preds) return;
-      searchResults.innerHTML = '';
-      preds.slice(0, 6).forEach((p) => {
-        const d = document.createElement('button');
-        d.type = 'button';
-        d.className = 'search-result';
-        d.textContent = p.description;
-        d.addEventListener('click', () => pickPlace(p));
-        searchResults.appendChild(d);
-      });
-      searchResults.classList.remove('hidden');
-    });
+    const url = 'https://photon.komoot.io/api/?q=' + encodeURIComponent(text) + '&limit=6&lang=en';
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error('bad');
+        return r.json();
+      })
+      .then((json) => {
+        const feats = json.features || [];
+        searchResults.innerHTML = '';
+        if (!feats.length) {
+          showToast('NO RESULTS');
+          return;
+        }
+        feats.forEach((f) => {
+          const d = document.createElement('button');
+          d.type = 'button';
+          d.className = 'search-result';
+          d.textContent = searchLabel(f);
+          d.addEventListener('click', () => pickPlace(f));
+          searchResults.appendChild(d);
+        });
+        searchResults.classList.remove('hidden');
+      })
+      .catch(() => showToast('SEARCH FAILED'));
   }
 
   searchInput.addEventListener('input', () => {
@@ -654,22 +642,15 @@
     });
   }
 
-  function pickPlace(pred) {
+  function pickPlace(f) {
     searchResults.classList.add('hidden');
-    loadGmaps();
-    if (!gapiReady) return;
-    const svc = new google.maps.places.PlacesService(document.createElement('div'));
-    svc.getDetails({ placeId: pred.place_id, fields: ['name', 'formatted_address', 'geometry', 'rating'] }, (place, status) => {
-      if (status !== 'OK' || !place || !place.geometry) {
-        showToast('PLACE NOT FOUND');
-        return;
-      }
-      const latlng = [place.geometry.location.lat(), place.geometry.location.lng()];
-      if (destMarker) map.removeLayer(destMarker);
-      destMarker = L.marker(latlng, { icon: destIcon() }).addTo(map);
-      map.flyTo(latlng, Math.max(map.getZoom(), 14), { duration: 1 });
-      showPlaceCard(place, latlng);
-    });
+    const coords = f.geometry && f.geometry.coordinates;
+    if (!coords || coords.length < 2) return;
+    const latlng = [coords[1], coords[0]];
+    if (destMarker) map.removeLayer(destMarker);
+    destMarker = L.marker(latlng, { icon: destIcon() }).addTo(map);
+    map.flyTo(latlng, Math.max(map.getZoom(), 14), { duration: 1 });
+    showPlaceCard(f, latlng);
   }
 
   const placeCard = q('.place-card');
@@ -677,10 +658,11 @@
   const placeAddr = q('.place-addr');
   let currentDest = null;
 
-  function showPlaceCard(place, latlng) {
-    currentDest = { name: place.name, addr: place.formatted_address, latlng: latlng };
-    placeName.textContent = place.name;
-    placeAddr.textContent = place.formatted_address || '-';
+  function showPlaceCard(f, latlng) {
+    const p = f.properties || {};
+    currentDest = { name: p.name || 'PLACE', addr: placeAddrText(p), latlng: latlng };
+    placeName.textContent = currentDest.name;
+    placeAddr.textContent = currentDest.addr;
     placeCard.classList.remove('hidden');
   }
 
@@ -703,49 +685,13 @@
     return s >= 60 ? Math.round(s / 60) + ' MIN' : Math.round(s) + ' S';
   }
 
-  function decodePolyline(str) {
-    let index = 0;
-    let lat = 0;
-    let lng = 0;
-    const coords = [];
-    while (index < str.length) {
-      let result = 0;
-      let shift = 0;
-      let b;
-      do {
-        b = str.charCodeAt(index++) - 63;
-        result |= (b & 31) << shift;
-        shift += 5;
-      } while (b >= 32);
-      lat += (result & 1 ? ~(result >> 1) : result >> 1);
-      result = 0;
-      shift = 0;
-      do {
-        b = str.charCodeAt(index++) - 63;
-        result |= (b & 31) << shift;
-        shift += 5;
-      } while (b >= 32);
-      lng += (result & 1 ? ~(result >> 1) : result >> 1);
-      coords.push([lat / 1e5, lng / 1e5]);
-    }
-    return coords;
-  }
-
-  function routeColor(step) {
-    const free = step.duration && step.duration.value;
-    const traf = step.duration_in_traffic && step.duration_in_traffic.value;
-    if (!free || !traf) return 'rgb(59, 130, 246)';
-    const r = traf / free;
-    if (r < 1.25) return 'rgb(43, 217, 127)';
-    if (r < 1.5) return 'rgb(245, 197, 66)';
-    if (r < 2) return 'rgb(245, 158, 11)';
-    return 'rgb(229, 83, 60)';
-  }
-
   function getOrigin() {
-    if (hasPlayer) return new google.maps.LatLng(player.getLatLng().lat, player.getLatLng().lng);
+    if (hasPlayer) {
+      const ll = player.getLatLng();
+      return { lat: ll.lat, lng: ll.lng };
+    }
     const c = map.getCenter();
-    return new google.maps.LatLng(c.lat, c.lng);
+    return { lat: c.lat, lng: c.lng };
   }
 
   let routeLayer = null;
@@ -757,32 +703,42 @@
 
   function buildRoute() {
     if (!currentDest) return;
-    if (!gkey) {
-      showToast('ENTER A GMAPS KEY IN SETTINGS');
+    if (!orsKey) {
+      showToast('ENTER AN ORS KEY IN SETTINGS');
       return;
     }
-    loadGmaps();
-    if (!gapiReady) {
-      showToast('GMAPS LOADING...');
-      return;
-    }
-    const svc = new google.maps.DirectionsService();
-    svc.route({
-      origin: getOrigin(),
-      destination: new google.maps.LatLng(currentDest.latlng[0], currentDest.latlng[1]),
-      travelMode: google.maps.TravelMode.DRIVING,
-      provideRouteAlternatives: true,
-      drivingOptions: { departureTime: new Date(), trafficModel: google.maps.TrafficModel.BEST_GUESS },
-    }, (res, status) => {
-      if (status !== 'OK' || !res.routes || !res.routes.length) {
-        showToast('NO ROUTE FOUND');
-        return;
-      }
-      currentRoutes = res.routes;
-      selectedRoute = 0;
-      drawRoutes();
-      updateRouteCard();
+    const o = getOrigin();
+    const body = JSON.stringify({
+      coordinates: [
+        [o.lng, o.lat],
+        [currentDest.latlng[1], currentDest.latlng[0]],
+      ],
     });
+    showToast('ROUTING...', 2500);
+    fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
+      method: 'POST',
+      headers: {
+        'Authorization': orsKey,
+        'Content-Type': 'application/json',
+      },
+      body: body,
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error('bad');
+        return r.json();
+      })
+      .then((res) => {
+        const f = res.features && res.features[0];
+        if (!f) {
+          showToast('NO ROUTE FOUND');
+          return;
+        }
+        currentRoutes = [f];
+        selectedRoute = 0;
+        drawRoutes();
+        updateRouteCard();
+      })
+      .catch(() => showToast('ROUTE FAILED. CHECK ORS KEY'));
   }
 
   function drawRoutes() {
@@ -791,32 +747,12 @@
       routeDashTimer = null;
     }
     if (routeLayer) map.removeLayer(routeLayer);
-    routeLayer = L.layerGroup().addTo(map);
-    routeLayers = [];
-    currentRoutes.forEach((route, i) => {
-      const active = i === selectedRoute;
-      const group = L.layerGroup();
-      const fills = [];
-      const steps = route.legs[0].steps;
-      steps.forEach((step) => {
-        const pts = decodePolyline(step.polyline.points);
-        const c = L.polyline(pts, { color: 'rgb(10, 14, 26)', weight: 8, opacity: active ? 0.9 : 0.4, lineJoin: 'miter', lineCap: 'butt' });
-        const f = L.polyline(pts, { color: routeColor(step), weight: 5, opacity: active ? 1 : 0.3, lineJoin: 'miter', lineCap: 'butt' });
-        if (active) f.setStyle({ dashArray: '16 10', lineCap: 'butt' });
-        fills.push(f);
-        group.addLayer(c);
-        group.addLayer(f);
-        if (active && currentRoutes.length > 1) {
-          f.on('click', () => {
-            selectedRoute = i;
-            drawRoutes();
-            updateRouteCard();
-          });
-        }
-      });
-      routeLayer.addLayer(group);
-      routeLayers.push({ group: group, fills: fills });
-    });
+    const pts = routePoints(currentRoutes[selectedRoute]);
+    const casing = L.polyline(pts, { color: 'rgb(10, 14, 26)', weight: 8, opacity: 0.9, lineJoin: 'miter', lineCap: 'butt' });
+    const fill = L.polyline(pts, { color: 'rgb(59, 130, 246)', weight: 5, opacity: 1, lineJoin: 'miter', lineCap: 'butt' });
+    fill.setStyle({ dashArray: '16 10', lineCap: 'butt' });
+    routeLayer = L.layerGroup([casing, fill]).addTo(map);
+    routeLayers = [{ fills: [fill] }];
     animateRoute(selectedRoute);
   }
 
@@ -838,44 +774,21 @@
   }
 
   function legTotals(route) {
-    const leg = route.legs[0];
-    let dist = 0;
-    let dur = 0;
-    let durT = 0;
-    leg.steps.forEach((s) => {
-      dist += s.distance.value;
-      dur += s.duration.value;
-      if (s.duration_in_traffic) durT += s.duration_in_traffic.value;
-    });
-    return { dist: dist, dur: dur, durT: durT || dur };
+    const s = route.properties && route.properties.summary;
+    const d = s ? s.duration : 0;
+    return { dist: s ? s.distance : 0, dur: d, durT: d };
   }
 
   const routeCard = q('.route-card');
   const routeMeta = q('.route-meta');
-  const btnAlts = q('.btn-alts');
 
   function updateRouteCard() {
     const t = legTotals(currentRoutes[selectedRoute]);
     const eta = new Date(Date.now() + t.durT * 1000);
     const hm = String(eta.getHours()).padStart(2, '0') + ':' + String(eta.getMinutes()).padStart(2, '0');
-    let meta = fmtDist(t.dist) + ' / ' + fmtMin(t.durT) + ' / ETA ' + hm;
-    if (t.durT > t.dur * 1.1) meta += ' (TRAFFIC +' + fmtMin(t.durT - t.dur) + ')';
-    routeMeta.textContent = meta;
-    if (currentRoutes.length > 1) {
-      btnAlts.classList.remove('hidden');
-      btnAlts.textContent = 'ALTS ' + (selectedRoute + 1) + '/' + currentRoutes.length;
-    } else {
-      btnAlts.classList.add('hidden');
-    }
+    routeMeta.textContent = fmtDist(t.dist) + ' / ' + fmtMin(t.durT) + ' / ETA ' + hm;
     if (!navActive) routeCard.classList.remove('hidden');
   }
-
-  btnAlts.addEventListener('click', () => {
-    if (!currentRoutes || currentRoutes.length < 2) return;
-    selectedRoute = (selectedRoute + 1) % currentRoutes.length;
-    drawRoutes();
-    updateRouteCard();
-  });
 
   function clearRoute() {
     stopNav();
@@ -978,13 +891,27 @@
     if (currentRoutes && currentRoutes[selectedRoute]) routeCard.classList.remove('hidden');
   }
 
+  function routeSteps(route) {
+    const steps = [];
+    (route.properties.segments || []).forEach((seg) => {
+      (seg.steps || []).forEach((s) => steps.push(s));
+    });
+    return steps;
+  }
+
+  function routePoints(route) {
+    return route.geometry.coordinates.map((c) => [c[1], c[0]]);
+  }
+
   function headingAlongRoute() {
     if (!currentRoutes || !currentRoutes[selectedRoute]) return 0;
-    const steps = currentRoutes[selectedRoute].legs[0].steps;
-    const step = steps[currentStepIndex] || steps[steps.length - 1];
-    const pts = decodePolyline(step.polyline.points);
-    if (!pts.length) return 0;
-    return bearing(lastNavPos || pts[0], pts[pts.length - 1]);
+    const route = currentRoutes[selectedRoute];
+    const pts = routePoints(route);
+    const steps = routeSteps(route);
+    const step = steps[currentStepIndex];
+    const wp = step && step.way_points && step.way_points[1];
+    const end = (wp !== undefined && pts[wp]) ? pts[wp] : pts[pts.length - 1];
+    return bearing(lastNavPos || pts[0], end);
   }
 
   function onNavPos(pos) {
@@ -1005,12 +932,11 @@
 
   function updateStep() {
     if (!currentRoutes || !currentRoutes[selectedRoute]) return;
-    const leg = currentRoutes[selectedRoute].legs[0];
-    const steps = leg.steps;
+    const steps = routeSteps(currentRoutes[selectedRoute]);
     let cum = 0;
     let idx = 0;
     for (let i = 0; i < steps.length; i++) {
-      cum += steps[i].distance.value;
+      cum += steps[i].distance;
       if (traveledDistance < cum) {
         idx = i;
         break;
@@ -1038,49 +964,42 @@
   const navBarFill = q('.nav-bar-fill');
   const navStep = q('.nav-step');
 
-  function maneuverText(m) {
-    const names = {
-      'turn-right': 'TURN RIGHT',
-      'turn-left': 'TURN LEFT',
-      'turn-sharp-right': 'SHARP RIGHT',
-      'turn-sharp-left': 'SHARP LEFT',
-      'turn-slight-right': 'SLIGHT RIGHT',
-      'turn-slight-left': 'SLIGHT LEFT',
-      'straight': 'STRAIGHT',
-      'merge': 'MERGE',
-      'fork-right': 'FORK RIGHT',
-      'fork-left': 'FORK LEFT',
-      'ramp-right': 'EXIT RIGHT',
-      'ramp-left': 'EXIT LEFT',
-      'roundabout-left': 'ROUNDABOUT LEFT',
-      'roundabout-right': 'ROUNDABOUT RIGHT',
-      'keep-right': 'KEEP RIGHT',
-      'keep-left': 'KEEP LEFT',
-      'destination': 'ARRIVE',
-      'uturn-right': 'U-TURN',
-      'uturn-left': 'U-TURN',
-      'depart': 'DEPART',
-    };
-    return names[m] || 'CONTINUE';
+  const TYPE_NAMES = {
+    0: 'TURN LEFT',
+    1: 'TURN RIGHT',
+    2: 'SHARP LEFT',
+    3: 'SHARP RIGHT',
+    4: 'SLIGHT LEFT',
+    5: 'SLIGHT RIGHT',
+    6: 'STRAIGHT',
+    7: 'ROUNDABOUT',
+    8: 'EXIT ROUNDABOUT',
+    9: 'U-TURN',
+    10: 'TURN OFF',
+    11: 'TURN ON',
+    12: 'FORK',
+    13: 'END OF ROAD',
+    14: 'MERGE',
+    15: 'ON RAMP',
+    16: 'OFF RAMP',
+    17: 'CONTINUE',
+    18: 'ROUNDABOUT',
+  };
+
+  function maneuverText(step, isLast) {
+    if (isLast) return 'ARRIVE';
+    return TYPE_NAMES[step.type] || 'CONTINUE';
   }
 
   function updateManeuver() {
     if (!currentRoutes || !currentRoutes[selectedRoute]) return;
-    const steps = currentRoutes[selectedRoute].legs[0].steps;
+    const steps = routeSteps(currentRoutes[selectedRoute]);
     if (currentStepIndex >= steps.length) {
       navManeuver.textContent = 'ARRIVED';
       navBarFill.style.width = '100%';
       return;
     }
-    navManeuver.textContent = maneuverText(steps[currentStepIndex].maneuver);
-  }
-
-  function routePoints(route) {
-    const pts = [];
-    route.legs[0].steps.forEach((s) => {
-      decodePolyline(s.polyline.points).forEach((p) => pts.push(p));
-    });
-    return pts;
+    navManeuver.textContent = maneuverText(steps[currentStepIndex], currentStepIndex === steps.length - 1);
   }
 
   function checkOffRoute() {

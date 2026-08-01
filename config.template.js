@@ -1,1 +1,0 @@
-window.GMAP_KEY = '';
