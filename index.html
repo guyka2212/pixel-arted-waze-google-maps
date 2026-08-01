@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='UTF-8' />
+<meta name='viewport' content='width=device-width, initial-scale=1.0' />
+<meta name='description' content='PIXEL NAV - a Waze-style navigation app on a real-world pixel art map. Map data from OpenStreetMap contributors, routing from Google Maps API.' />
+<title>PIXEL NAV - waze style, retro pixels</title>
+<link rel='preconnect' href='https://fonts.googleapis.com' />
+<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin />
+<link rel='preconnect' href='https://unpkg.com' />
+<link rel='preconnect' href='https://a.tile.openstreetmap.org' />
+<link rel='preconnect' href='https://b.tile.openstreetmap.org' />
+<link rel='preconnect' href='https://c.tile.openstreetmap.org' />
+<link rel='preconnect' href='https://photon.komoot.io' />
+<link href='https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap' rel='stylesheet' />
+<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' />
+<link rel='stylesheet' href='style.css?v=2' />
+</head>
+<body>
+<div class='map' aria-label='Pixel art world map'></div>
+
+<header class='hud'>
+  <div class='hud-title'><span class='blink'>▶</span>&nbsp;PIXEL NAV</div>
+  <div class='hud-sub'>REAL-WORLD RETRO / WAZE STYLE</div>
+  <div class='hud-coords'>
+    <span class='dim'>LAT</span> <span class='hud-lat'>--.----</span>
+    <span class='dim'>LON</span> <span class='hud-lng'>--.----</span>
+    <span class='dim'>ZOOM</span> <span class='hud-zoom'>2</span>
+  </div>
+  <div class='hud-progress'><div class='hud-progress-bar'></div></div>
+</header>
+
+<div class='search'>
+  <input class='search-input' type='text' placeholder='SEARCH PLACE...' autocomplete='off' spellcheck='false' />
+  <div class='search-results hidden'></div>
+</div>
+
+<div class='buttons'>
+  <button class='pbtn btn-locate' title='Find my location'>
+    <span class='pbtn-ico'>☾</span><span class='pbtn-txt'>LOCATE</span>
+  </button>
+  <button class='pbtn btn-settings' title='Pixel engine settings'>
+    <span class='pbtn-ico'>⚙</span><span class='pbtn-txt'>PIXEL</span>
+  </button>
+</div>
+
+<div class='place-card hidden'>
+  <div class='place-head'>
+    <span class='place-name'>PLACE</span>
+    <button class='pbtn pbtn-sm btn-close-place' title='Close'>&times;</button>
+  </div>
+  <div class='place-addr dim'>-</div>
+  <div class='place-row'>
+    <button class='pbtn btn-go'>GO</button>
+  </div>
+</div>
+
+<div class='route-card hidden'>
+  <div class='route-head'>
+    <span class='route-title'>ROUTE</span>
+    <button class='pbtn pbtn-sm btn-close-route' title='Close'>&times;</button>
+  </div>
+  <div class='route-meta dim'>-</div>
+  <div class='route-row'>
+    <button class='pbtn btn-alts hidden'>ALTS</button>
+    <button class='pbtn btn-start-nav'>START NAV</button>
+  </div>
+</div>
+
+<div class='nav-banner hidden'>
+  <div class='nav-top'>
+    <span class='nav-maneuver'>TURN RIGHT</span>
+    <span class='nav-meta dim'>-</span>
+  </div>
+  <div class='nav-bar'><div class='nav-bar-fill'></div></div>
+  <div class='nav-bottom'>
+    <span class='nav-step'>-</span>
+    <button class='pbtn pbtn-sm btn-stop-nav' title='Stop navigation'>STOP</button>
+  </div>
+</div>
+
+<aside class='settings hidden' aria-label='Settings'>
+  <div class='settings-head'>
+    <span class='blink'>▣</span>&nbsp;PIXEL ENGINE
+    <button class='pbtn pbtn-sm btn-close-settings' title='Close'>&times;</button>
+  </div>
+  <label class='srow'>
+    <span>PIXEL SIZE</span>
+    <input type='range' class='pixel-scale' min='2' max='14' step='1' value='5' />
+    <span class='sval pixel-scale-val'>5</span>
+  </label>
+  <label class='srow'>
+    <span>COLOR DEPTH</span>
+    <input type='range' class='pixel-levels' min='4' max='256' step='4' value='32' />
+    <span class='sval pixel-levels-val'>32</span>
+  </label>
+  <label class='srow srow-check'>
+    <span>SCANLINES</span>
+    <input type='checkbox' class='scanlines' checked />
+  </label>
+  <label class='srow'>
+    <span>GMAPS KEY</span>
+    <input type='password' class='gmap-key' placeholder='ENTER KEY' />
+    <span class='dim note'>SEARCH + ROUTE NEED A KEY</span>
+  </label>
+  <div class='settings-note'>MAP DATA IS FROM OPENSTREETMAP.<br />RIGHT CLICK THE MAP TO REPORT.<br />PRESS LOCATE TO FIND YOURSELF.</div>
+</aside>
+
+<div class='report-menu hidden'>
+  <div class='report-head'>REPORT</div>
+  <button class='pbtn report-btn' data-type='hazard'>HAZARD</button>
+  <button class='pbtn report-btn' data-type='accident'>ACCIDENT</button>
+  <button class='pbtn report-btn' data-type='police'>POLICE</button>
+  <button class='pbtn report-btn' data-type='camera'>CAMERA</button>
+  <button class='pbtn report-btn' data-type='construction'>ROAD WORK</button>
+  <button class='pbtn pbtn-sm report-cancel'>CANCEL</button>
+</div>
+
+<div class='toast hidden' role='status'></div>
+
+<div class='splash'>
+  <div class='splash-box'>
+    <div class='splash-ico'><span class='blink'>▣</span></div>
+    <div class='splash-txt'>LOADING WORLD...</div>
+    <div class='splash-bar'><div class='splash-bar-fill'></div></div>
+  </div>
+</div>
+
+<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
+<script src='config.js'></script>
+<script src='script.js?v=2'></script>
+</body>
+</html>
